@@ -1,0 +1,22 @@
+{
+  "name": "surrealql",
+  "displayName": "SurrealQL",
+  "version": "0.1.0",
+  "contributes": {
+    "languages": [
+      {
+        "id": "surrealql",
+        "aliases": ["SurrealQL", "surql"],
+        "extensions": [".surql", ".surrealql"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "surrealql",
+        "scopeName": "source.surrealql",
+        "path": "./surrealql.tmLanguage.json"
+      }
+    ]
+  }
+}

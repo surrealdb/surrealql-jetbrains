@@ -1,0 +1,35 @@
+<idea-plugin>
+    <id>com.surrealdb.surql-jetbrains</id>
+    <name>SurrealQL</name>
+    <vendor url="https://surrealdb.com">SurrealDB</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.textmate</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+
+        <!-- TextMate grammar for syntax coloring of .surql/.surrealql files -->
+        <textmate.bundleProvider implementation="com.surrealdb.surql.SurQLTextMateBundleProvider"/>
+
+        <!-- File icon for .surql/.surrealql files in the project view -->
+        <fileIconProvider implementation="com.surrealdb.surql.SurQLFileIconProvider"/>
+
+        <!-- Grammar version management service -->
+        <applicationService serviceImplementation="com.surrealdb.surql.SurQLGrammarService"/>
+
+        <!-- Persistent settings (selected grammar version) -->
+        <applicationService serviceImplementation="com.surrealdb.surql.settings.SurQLSettings"/>
+
+        <!-- Settings page: Settings → Tools → SurrealQL -->
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.surrealdb.surql.settings.SurQLSettingsConfigurable"
+                id="com.surrealdb.surql.settings"
+                displayName="SurrealQL"/>
+
+        <!-- Notification group for grammar download errors -->
+        <notificationGroup id="SurrealQL" displayType="BALLOON"/>
+
+    </extensions>
+
+</idea-plugin>

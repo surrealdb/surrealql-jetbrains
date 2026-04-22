@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="100%" height="100%" viewBox="0 0 840 980" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <path d="M420,257.8L653.3,387L653.3,335.2L420,206.3C385.3,225.5 217.6,318.2 186.7,335.2C215.4,351.1 516.8,517.6 700,618.8L700,670.4C675.1,684.2 420,825.1 420,825.1C350.2,786.6 209.7,709 140,670.4L140,515.7L420,670.4L466.7,644.6L93.3,438.4L93.3,696.3L420,876.7C452.2,858.9 722.8,709.4 746.6,696.2L746.6,593.1L280,335.2L420,257.8ZM93.3,283.6L93.3,386.8L559.9,644.7L419.9,722.1L186.6,592.9L186.6,644.7L419.9,773.6C454.6,754.4 622.3,661.7 653.2,644.7C624.5,628.8 323.2,462.3 140,361L140,309.4C164.9,295.6 420,154.7 420,154.7C489.7,193.3 630.2,270.9 700,309.4L700,464.1L420,309.4L373.3,335.2L746.6,541.5L746.6,283.6L420,103.1C387.7,121 117.2,270.5 93.3,283.6ZM420,0L0,232.1L0,747.8L420,979.9L840,747.9L840,232.1L420,0ZM793.2,722L420,928.3L46.7,722L46.7,257.9L420,51.6L793.3,257.9L793.2,722Z" style="fill:url(#_Linear1);fill-rule:nonzero;"/>
+    <defs>
+        <linearGradient id="_Linear1" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(433.3479,750.5806,-750.5806,433.3479,203.3477,114.6972)"><stop offset="0" style="stop-color:#ff00a0;stop-opacity:1"/><stop offset="1" style="stop-color:#9600ff;stop-opacity:1"/></linearGradient>
+    </defs>
+</svg>
