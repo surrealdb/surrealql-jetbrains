@@ -101,6 +101,7 @@ internal fun buildInitializationOptions(): Map<String, Any?> {
     if (settings.activeAuthContext.isNotBlank()) {
         surrealql["activeAuthContext"] = settings.activeAuthContext
     }
+    surrealql["metadata"] = mapOf("mode" to settings.inferenceMode)
 
     return mapOf("surrealql" to surrealql)
 }

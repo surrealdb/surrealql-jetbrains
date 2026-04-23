@@ -34,6 +34,15 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
 
         /** Name of the auth context the server should activate (matches `surrealql.activeAuthContext`). */
         var activeAuthContext: String = "viewer",
+
+        /**
+         * Controls which sources the language server uses for schema inference.
+         * Forwarded as `surrealql.metadata.mode`.
+         *   "both"      – local workspace files + remote SurrealDB (default)
+         *   "workspace" – local workspace files only
+         *   "db"        – remote SurrealDB only
+         */
+        var inferenceMode: String = "both",
     )
 
     private var state = State()
@@ -84,6 +93,10 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
     var activeAuthContext: String
         get() = state.activeAuthContext
         set(value) { state.activeAuthContext = value }
+
+    var inferenceMode: String
+        get() = state.inferenceMode
+        set(value) { state.inferenceMode = value }
 
     companion object {
         fun getInstance(): SurQLSettings =

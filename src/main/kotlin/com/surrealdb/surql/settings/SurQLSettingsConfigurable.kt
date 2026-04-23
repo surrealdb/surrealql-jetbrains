@@ -24,6 +24,16 @@ import javax.swing.SwingUtilities
 /** Label shown as the first entry when the user wants automatic latest-version tracking. */
 private const val LATEST_LABEL = "Latest (automatically updated)"
 
+/** Human-readable labels for the inference mode combo box. */
+private val INFERENCE_OPTIONS = arrayOf(
+    "Both (workspace + database)",
+    "Workspace only",
+    "Database only",
+)
+
+/** Corresponding `surrealql.metadata.mode` values sent to the language server. */
+private val INFERENCE_VALUES = arrayOf("both", "workspace", "db")
+
 class SurQLSettingsConfigurable : Configurable {
 
     private var versionCombo: JComboBox<String>? = null
@@ -32,6 +42,7 @@ class SurQLSettingsConfigurable : Configurable {
     private var lspEnabled: JBCheckBox? = null
     private var lspVersionCombo: JComboBox<String>? = null
     private var lspBinaryOverride: TextFieldWithBrowseButton? = null
+    private var inferenceModeCombo: JComboBox<String>? = null
     private var endpointField: JBTextField? = null
     private var namespaceField: JBTextField? = null
     private var databaseField: JBTextField? = null
@@ -66,6 +77,11 @@ class SurQLSettingsConfigurable : Configurable {
             addBrowseFolderListener(null, descriptor)
         }
         lspBinaryOverride = override
+
+        val inferenceCombo = JComboBox(DefaultComboBoxModel(INFERENCE_OPTIONS)).apply {
+            selectedIndex = INFERENCE_VALUES.indexOf(SurQLSettings.getInstance().inferenceMode).coerceAtLeast(0)
+        }
+        inferenceModeCombo = inferenceCombo
 
         val endpoint = JBTextField(SurQLSettings.getInstance().surrealEndpoint)
         endpointField = endpoint
@@ -113,6 +129,14 @@ class SurQLSettingsConfigurable : Configurable {
                             "Optional. If set, this binary is used instead of the auto-downloaded release."
                         )
                 }
+                row("Inference source:") {
+                    cell(inferenceCombo).align(AlignX.FILL)
+                        .comment(
+                            "Controls which sources the language server uses to infer table and field names. " +
+                                "<b>Workspace</b> scans local <code>.surql</code> files; " +
+                                "<b>Database</b> queries a connected SurrealDB instance."
+                        )
+                }
 
                 group("SurrealDB connection (optional)") {
                     row("Endpoint:") {
@@ -139,6 +163,7 @@ class SurQLSettingsConfigurable : Configurable {
             (lspEnabled?.isSelected ?: settings.lspEnabled) != settings.lspEnabled ||
             selectedVersion(lspVersionCombo) != settings.lspSelectedVersion ||
             (lspBinaryOverride?.text ?: "") != settings.lspBinaryOverride ||
+            selectedInferenceMode() != settings.inferenceMode ||
             (endpointField?.text ?: "") != settings.surrealEndpoint ||
             (namespaceField?.text ?: "") != settings.surrealNamespace ||
             (databaseField?.text ?: "") != settings.surrealDatabase ||
@@ -153,7 +178,8 @@ class SurQLSettingsConfigurable : Configurable {
         val grammarChanged = settings.selectedVersion != selectedVersion(versionCombo)
         val lspBinaryChanged = settings.lspSelectedVersion != selectedVersion(lspVersionCombo) ||
             settings.lspBinaryOverride != (lspBinaryOverride?.text ?: "")
-        val initOptionsChanged = settings.surrealEndpoint != (endpointField?.text ?: "") ||
+        val initOptionsChanged = settings.inferenceMode != selectedInferenceMode() ||
+            settings.surrealEndpoint != (endpointField?.text ?: "") ||
             settings.surrealNamespace != (namespaceField?.text ?: "") ||
             settings.surrealDatabase != (databaseField?.text ?: "") ||
             settings.surrealUsername != (usernameField?.text ?: "") ||
@@ -165,6 +191,7 @@ class SurQLSettingsConfigurable : Configurable {
         settings.lspEnabled = lspEnabled?.isSelected ?: settings.lspEnabled
         settings.lspSelectedVersion = selectedVersion(lspVersionCombo)
         settings.lspBinaryOverride = lspBinaryOverride?.text ?: ""
+        settings.inferenceMode = selectedInferenceMode()
         settings.surrealEndpoint = endpointField?.text ?: ""
         settings.surrealNamespace = namespaceField?.text ?: ""
         settings.surrealDatabase = databaseField?.text ?: ""
@@ -176,8 +203,11 @@ class SurQLSettingsConfigurable : Configurable {
             TextMateService.getInstance().reloadEnabledBundles()
         }
         if (lspBinaryChanged || initOptionsChanged || enabledChanged) {
-            // Bounce the LSP so the new binary path / init options take effect.
-            restartLanguageServer()
+            // LanguageServerManager.stop() internally calls setEnabled(false), which overwrites
+            // settings.lspEnabled. Capture the intended value first and pass it through so we
+            // can restore it between stop() and start().
+            val intendedLspEnabled = lspEnabled?.isSelected ?: settings.lspEnabled
+            restartLanguageServer(intendedLspEnabled)
         }
     }
 
@@ -187,6 +217,7 @@ class SurQLSettingsConfigurable : Configurable {
         resetCombo(lspVersionCombo, settings.lspSelectedVersion)
         lspEnabled?.isSelected = settings.lspEnabled
         lspBinaryOverride?.text = settings.lspBinaryOverride
+        inferenceModeCombo?.selectedIndex = INFERENCE_VALUES.indexOf(settings.inferenceMode).coerceAtLeast(0)
         endpointField?.text = settings.surrealEndpoint
         namespaceField?.text = settings.surrealNamespace
         databaseField?.text = settings.surrealDatabase
@@ -200,6 +231,7 @@ class SurQLSettingsConfigurable : Configurable {
         lspEnabled = null
         lspVersionCombo = null
         lspBinaryOverride = null
+        inferenceModeCombo = null
         endpointField = null
         namespaceField = null
         databaseField = null
@@ -216,6 +248,12 @@ class SurQLSettingsConfigurable : Configurable {
         return if (item == LATEST_LABEL || item.startsWith("Latest (")) "" else item
     }
 
+    /** Returns the `metadata.mode` value corresponding to the currently selected inference option. */
+    private fun selectedInferenceMode(): String {
+        val idx = inferenceModeCombo?.selectedIndex ?: 0
+        return INFERENCE_VALUES.getOrElse(idx) { "both" }
+    }
+
     private fun resetCombo(combo: JComboBox<String>?, saved: String) {
         if (combo == null) return
         if (saved.isBlank()) {
@@ -226,12 +264,15 @@ class SurQLSettingsConfigurable : Configurable {
         combo.selectedIndex = idx ?: 0
     }
 
-    private fun restartLanguageServer() {
+    private fun restartLanguageServer(intendedLspEnabled: Boolean = SurQLSettings.getInstance().lspEnabled) {
         val openProjects = ProjectManager.getInstance().openProjects
         for (project in openProjects) {
             val manager = LanguageServerManager.getInstance(project)
             try {
                 manager.stop(SurQLLanguageServerFactory.SERVER_ID_VALUE)
+                // stop() calls setEnabled(false) internally, overwriting settings.lspEnabled.
+                // Restore the intended value so start() sees the correct isEnabled() result.
+                SurQLSettings.getInstance().lspEnabled = intendedLspEnabled
                 manager.start(SurQLLanguageServerFactory.SERVER_ID_VALUE)
             } catch (_: Throwable) {
                 // The server may not be running yet; LSP4IJ will start it on next file open.
