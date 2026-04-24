@@ -36,3 +36,7 @@ Thumbs.db
 # Plugin signing key
 chain.crt
 private.pem
+
+# Bundled LSP binaries staged by `./gradlew downloadLspBinaries` for release
+# packaging — large reproducible artifacts, not source.
+src/main/resources/lsp/

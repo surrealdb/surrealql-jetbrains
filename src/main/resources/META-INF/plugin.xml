@@ -5,6 +5,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.textmate</depends>
+    <depends>com.redhat.devtools.lsp4ij</depends>
 
     <extensions defaultExtensionNs="com.intellij">
 
@@ -17,6 +18,9 @@
         <!-- Grammar version management service -->
         <applicationService serviceImplementation="com.surrealdb.surql.SurQLGrammarService"/>
 
+        <!-- Language server binary download/cache service -->
+        <applicationService serviceImplementation="com.surrealdb.surql.lsp.SurQLLanguageServerService"/>
+
         <!-- Persistent settings (selected grammar version) -->
         <applicationService serviceImplementation="com.surrealdb.surql.settings.SurQLSettings"/>
 
@@ -27,9 +31,38 @@
                 id="com.surrealdb.surql.settings"
                 displayName="SurrealQL"/>
 
-        <!-- Notification group for grammar download errors -->
+        <!-- Notification group for grammar/language-server download errors -->
         <notificationGroup id="SurrealQL" displayType="BALLOON"/>
 
+        <!-- Pre-warm the LSP binary cache at project startup so the first
+             .surql open doesn't pay the GitHub download latency. -->
+        <postStartupActivity implementation="com.surrealdb.surql.lsp.SurQLLspStartupActivity"/>
+
+    </extensions>
+
+    <!-- LSP4IJ integration for the surrealql-language-server -->
+    <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">
+        <server id="surrealqlLanguageServer"
+                name="SurrealQL Language Server"
+                factoryClass="com.surrealdb.surql.lsp.SurQLLanguageServerFactory">
+            <description><![CDATA[
+                <p>Diagnostics, hover, completion, go-to-definition, references, rename and code actions
+                for SurrealQL via the
+                <a href="https://github.com/surrealdb/surrealql-language-server">surrealql-language-server</a>.</p>
+                <p>The server binary is downloaded automatically from GitHub Releases on first launch and
+                cached locally. You can pin a release or override the binary path under
+                <em>Settings &rarr; Tools &rarr; SurrealQL</em>.</p>
+            ]]></description>
+        </server>
+
+        <!--
+            File-name mapping (rather than language/file-type mapping) preserves the existing
+            TextMate syntax coloring, which we still want for tokenisation. languageId follows
+            the convention used by the language server's clients.
+        -->
+        <fileNamePatternMapping patterns="*.surql;*.surrealql"
+                                serverId="surrealqlLanguageServer"
+                                languageId="surrealql"/>
     </extensions>
 
 </idea-plugin>
