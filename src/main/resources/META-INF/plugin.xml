@@ -38,6 +38,22 @@
              .surql open doesn't pay the GitHub download latency. -->
         <postStartupActivity implementation="com.surrealdb.surql.lsp.SurQLLspStartupActivity"/>
 
+        <!-- Code Vision "▶ Run" lens rendered above the first line of each SurrealQL statement. -->
+        <codeInsight.codeVisionProvider
+                implementation="com.surrealdb.surql.run.SurQLCodeVisionProvider"/>
+
+        <!-- Tool window that displays query results and history. Anchored to the bottom panel. -->
+        <toolWindow id="SurrealQL Results"
+                    factoryClass="com.surrealdb.surql.run.SurQLResultsToolWindowFactory"
+                    anchor="bottom"
+                    icon="/icons/surql.svg"/>
+
+        <!-- Status bar widget showing the active SurrealDB connection details. -->
+        <statusBarWidgetFactory
+                implementation="com.surrealdb.surql.statusbar.SurQLStatusBarWidgetFactory"
+                id="SurQLStatusBar"
+                order="after git"/>
+
     </extensions>
 
     <!-- LSP4IJ integration for the surrealql-language-server -->

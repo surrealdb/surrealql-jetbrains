@@ -209,6 +209,11 @@ class SurQLSettingsConfigurable : Configurable {
             val intendedLspEnabled = lspEnabled?.isSelected ?: settings.lspEnabled
             restartLanguageServer(intendedLspEnabled)
         }
+
+        // Notify the status bar widget (and any other listeners) that settings have changed.
+        ApplicationManager.getApplication().messageBus
+            .syncPublisher(SurQLSettingsListener.TOPIC)
+            .settingsChanged()
     }
 
     override fun reset() {
