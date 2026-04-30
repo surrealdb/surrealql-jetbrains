@@ -1,3 +1,5 @@
+import org.jetbrains.changelog.Changelog
+import org.jetbrains.changelog.date
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import java.net.HttpURLConnection
@@ -7,10 +9,23 @@ import java.net.URL
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
     id("org.jetbrains.intellij.platform") version "2.14.0"
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = "com.surrealdb"
 version = "0.2.0"
+
+changelog {
+    version.set(project.version.toString())
+    path.set(file("CHANGELOG.md").canonicalPath)
+    header.set(provider { "[${version.get()}] - ${date()}" })
+    headerParserRegex.set("""(\d+\.\d+(?:\.\d+)?)""".toRegex())
+    itemPrefix.set("-")
+    keepUnreleasedSection.set(true)
+    unreleasedTerm.set("[Unreleased]")
+    groups.set(listOf("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"))
+    repositoryUrl.set("https://github.com/surrealdb/surrealql-jetbrains")
+}
 
 kotlin {
     jvmToolchain(17)
@@ -75,19 +90,20 @@ intellijPlatform {
               <li><a href="https://github.com/surrealdb-dev/surql-jetbrains/issues">Issue tracker</a></li>
             </ul>
         """.trimIndent()
-        changeNotes = """
-            <h3>0.1.0 &mdash; Initial release</h3>
-            <ul>
-              <li>Syntax highlighting for <code>.surql</code> and <code>.surrealql</code> files via the
-                  TextMate grammar from <a href="https://github.com/surrealdb/surrealql-vsx">surrealdb/surrealql-vsx</a></li>
-              <li>Custom SurrealQL file icon in the project view and editor tabs</li>
-              <li>Grammar version picker under <em>Settings &rarr; Tools &rarr; SurrealQL</em>:
-                  pick the latest release or pin to any published version</li>
-              <li>Live grammar swap &mdash; no IDE restart required when switching versions</li>
-              <li>Offline fallback grammar bundled inside the plugin JAR for first-launch and
-                  no-network scenarios</li>
-            </ul>
-        """.trimIndent()
+        // Marketplace change-notes are sourced from CHANGELOG.md via the
+        // org.jetbrains.changelog plugin. The current version's section is
+        // rendered as HTML; older versions are reachable via the marketplace
+        // history page.
+        changeNotes = provider {
+            with(changelog) {
+                renderItem(
+                    (getOrNull(project.version.toString()) ?: getUnreleased())
+                        .withHeader(false)
+                        .withEmptySections(false),
+                    Changelog.OutputType.HTML,
+                )
+            }
+        }
         ideaVersion {
             sinceBuild = "243"
             untilBuild = provider { null }
