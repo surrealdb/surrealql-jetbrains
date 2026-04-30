@@ -1,5 +1,6 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.date
+import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import java.net.HttpURLConnection
@@ -56,34 +57,11 @@ intellijPlatform {
         id = "com.surrealdb.surql-jetbrains"
         name = "SurrealQL"
         version = project.version.toString()
-        description = """
-            <p>
-              <strong>SurrealQL</strong> language support for JetBrains IDEs &mdash; brings first-class
-              editing of <code>.surql</code> and <code>.surrealql</code> files to IntelliJ IDEA,
-              PyCharm, WebStorm, GoLand, RustRover, DataGrip, and any other IntelliJ-based IDE.
-            </p>
-
-            <h3>Features</h3>
-            <ul>
-              <li>Syntax highlighting via the official TextMate grammar from
-                  <a href="https://github.com/surrealdb/surrealql-vsx">surrealdb/surrealql-vsx</a></li>
-              <li>Custom file icon for <code>.surql</code> and <code>.surrealql</code> files in the project view and editor tabs</li>
-              <li>Grammar version picker &mdash; always stay on the latest release or pin to any older version, switched live without an IDE restart</li>
-              <li>Offline fallback: the latest grammar at build time is bundled inside the plugin so highlighting works even without a network connection</li>
-              <li>Settings page under <em>Settings &rarr; Tools &rarr; SurrealQL</em></li>
-            </ul>
-
-            <h3>Compatibility</h3>
-            <p>Works in any IntelliJ Platform IDE on build <code>243</code> (2024.3) or newer.</p>
-
-            <h3>Links</h3>
-            <ul>
-              <li><a href="https://surrealdb.com">SurrealDB</a></li>
-              <li><a href="https://surrealdb.com/docs/surrealdb/surrealql">SurrealQL documentation</a></li>
-              <li><a href="https://github.com/surrealdb-dev/surql-jetbrains">GitHub repository</a></li>
-              <li><a href="https://github.com/surrealdb-dev/surql-jetbrains/issues">Issue tracker</a></li>
-            </ul>
-        """.trimIndent()
+        // Marketplace description is sourced from DESCRIPTION.md, rendered to
+        // HTML at build time. Edit DESCRIPTION.md (not this file) to update the
+        // marketplace listing.
+        description = providers.fileContents(layout.projectDirectory.file("DESCRIPTION.md"))
+            .asText.map { markdownToHTML(it) }
         // Marketplace change-notes are sourced from CHANGELOG.md via the
         // org.jetbrains.changelog plugin. The current version's section is
         // rendered as HTML; older versions are reachable via the marketplace
