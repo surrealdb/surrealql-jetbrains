@@ -43,6 +43,9 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
          *   "db"        – remote SurrealDB only
          */
         var inferenceMode: String = "both",
+
+        /** Whether to show the code lens (▶ Run) in SurrealQL files. */
+        var codeLensEnabled: Boolean = false,
     )
 
     private var state = State()
@@ -97,6 +100,10 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
     var inferenceMode: String
         get() = state.inferenceMode
         set(value) { state.inferenceMode = value }
+
+    var codeLensEnabled: Boolean
+        get() = state.codeLensEnabled
+        set(value) { state.codeLensEnabled = value }
 
     companion object {
         fun getInstance(): SurQLSettings =

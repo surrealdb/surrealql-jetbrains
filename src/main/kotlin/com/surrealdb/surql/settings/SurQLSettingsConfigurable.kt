@@ -43,6 +43,7 @@ class SurQLSettingsConfigurable : Configurable {
     private var lspVersionCombo: JComboBox<String>? = null
     private var lspBinaryOverride: TextFieldWithBrowseButton? = null
     private var inferenceModeCombo: JComboBox<String>? = null
+    private var codeLensEnabled: JBCheckBox? = null
     private var endpointField: JBTextField? = null
     private var namespaceField: JBTextField? = null
     private var databaseField: JBTextField? = null
@@ -82,6 +83,9 @@ class SurQLSettingsConfigurable : Configurable {
             selectedIndex = INFERENCE_VALUES.indexOf(SurQLSettings.getInstance().inferenceMode).coerceAtLeast(0)
         }
         inferenceModeCombo = inferenceCombo
+
+        val codeLens = JBCheckBox("Enable code lens", SurQLSettings.getInstance().codeLensEnabled)
+        codeLensEnabled = codeLens
 
         val endpoint = JBTextField(SurQLSettings.getInstance().surrealEndpoint)
         endpointField = endpoint
@@ -138,6 +142,8 @@ class SurQLSettingsConfigurable : Configurable {
                         )
                 }
 
+                row { cell(codeLens) }
+
                 group("SurrealDB connection (optional)") {
                     row("Endpoint:") {
                         cell(endpoint).align(AlignX.FILL)
@@ -164,6 +170,7 @@ class SurQLSettingsConfigurable : Configurable {
             selectedVersion(lspVersionCombo) != settings.lspSelectedVersion ||
             (lspBinaryOverride?.text ?: "") != settings.lspBinaryOverride ||
             selectedInferenceMode() != settings.inferenceMode ||
+            (codeLensEnabled?.isSelected ?: settings.codeLensEnabled) != settings.codeLensEnabled ||
             (endpointField?.text ?: "") != settings.surrealEndpoint ||
             (namespaceField?.text ?: "") != settings.surrealNamespace ||
             (databaseField?.text ?: "") != settings.surrealDatabase ||
@@ -192,6 +199,7 @@ class SurQLSettingsConfigurable : Configurable {
         settings.lspSelectedVersion = selectedVersion(lspVersionCombo)
         settings.lspBinaryOverride = lspBinaryOverride?.text ?: ""
         settings.inferenceMode = selectedInferenceMode()
+        settings.codeLensEnabled = codeLensEnabled?.isSelected ?: settings.codeLensEnabled
         settings.surrealEndpoint = endpointField?.text ?: ""
         settings.surrealNamespace = namespaceField?.text ?: ""
         settings.surrealDatabase = databaseField?.text ?: ""
@@ -218,6 +226,7 @@ class SurQLSettingsConfigurable : Configurable {
         lspEnabled?.isSelected = settings.lspEnabled
         lspBinaryOverride?.text = settings.lspBinaryOverride
         inferenceModeCombo?.selectedIndex = INFERENCE_VALUES.indexOf(settings.inferenceMode).coerceAtLeast(0)
+        codeLensEnabled?.isSelected = settings.codeLensEnabled
         endpointField?.text = settings.surrealEndpoint
         namespaceField?.text = settings.surrealNamespace
         databaseField?.text = settings.surrealDatabase
@@ -232,6 +241,7 @@ class SurQLSettingsConfigurable : Configurable {
         lspVersionCombo = null
         lspBinaryOverride = null
         inferenceModeCombo = null
+        codeLensEnabled = null
         endpointField = null
         namespaceField = null
         databaseField = null
