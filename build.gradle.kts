@@ -63,12 +63,6 @@ intellijPlatform {
               PyCharm, WebStorm, GoLand, RustRover, DataGrip, and any other IntelliJ-based IDE.
             </p>
 
-            <p>
-              <img src="https://raw.githubusercontent.com/surrealdb-dev/surql-jetbrains/main/src/main/resources/images/thumbnail.png"
-                   alt="SurrealQL syntax highlighting in the JetBrains editor"
-                   width="640"/>
-            </p>
-
             <h3>Features</h3>
             <ul>
               <li>Syntax highlighting via the official TextMate grammar from
