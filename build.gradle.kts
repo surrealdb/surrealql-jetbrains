@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "com.surrealdb"
-version = "0.2.0"
+version = "0.2.1"
 
 changelog {
     version.set(project.version.toString())

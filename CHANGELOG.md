@@ -1,8 +1,20 @@
 # SurrealQL JetBrains Plugin Changelog
 
 All notable changes to the SurrealQL JetBrains plugin are documented in this file.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.1] - 2026-04-30
+
+### Added
+
+- Custom spell-check dictionary so SurrealQL keywords (e.g. `SCHEMAFULL`,
+  `SCHEMALESS`, `NAMESPACE`) are no longer flagged as typos.
+- Setting under *Settings → Tools → SurrealQL* to toggle the inline
+  "▶ Run" code lens (disabled by default).
 
 ## [0.2.0] - 2026-04-30
 
@@ -34,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IDE restart.
 - Offline fallback grammar bundled inside the plugin JAR.
 
-[[Unreleased]]: https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/surrealdb-dev/surql-jetbrains/commits/v0.1.0
-[Unreleased]: https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.0...HEAD
+[0.1.0]: https://github.com/surrealdb-dev/surql-jetbrains/releases/tag/v0.1.0
