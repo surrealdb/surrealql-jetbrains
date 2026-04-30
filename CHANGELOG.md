@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the duplicate thumbnail image from the marketplace description.
 - Fixed the description text not wrapping correctly on the plugin page.
 
-## [0.2.0] - 2026-04-30
+## [0.2.0] - 2026-04-29
 
 ### Added
 
@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings for the language-server version, binary override, inference
   source (workspace / database / both), and SurrealDB connection details.
 
-## [0.1.0] - 2025-09-01
+## [0.1.0] - 2026-04-28
 
 ### Added
 
