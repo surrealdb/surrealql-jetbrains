@@ -31,3 +31,4 @@ Works in any IntelliJ Platform IDE on build `243` (2024.3) or newer.
 - [SurrealQL documentation](https://surrealdb.com/docs/surrealdb/surrealql)
 - [GitHub repository](https://github.com/surrealdb-dev/surql-jetbrains)
 - [Issue tracker](https://github.com/surrealdb-dev/surql-jetbrains/issues)
+
