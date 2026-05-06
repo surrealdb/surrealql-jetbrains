@@ -45,7 +45,7 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
         var inferenceMode: String = "both",
 
         /** Whether to show the code lens (▶ Run) in SurrealQL files. */
-        var codeLensEnabled: Boolean = false,
+        var codeLensEnabled: Boolean = true,
     )
 
     private var state = State()
