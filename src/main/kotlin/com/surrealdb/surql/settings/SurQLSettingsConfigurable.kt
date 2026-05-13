@@ -144,7 +144,12 @@ class SurQLSettingsConfigurable : Configurable {
 
                 row { cell(codeLens) }
 
-                group("SurrealDB connection (optional)") {
+                group("Custom connection") {
+                    row { comment(
+                        "Used when a project selects <b>Custom</b> under " +
+                            "<em>Settings &rarr; Tools &rarr; SurrealQL &rarr; Project</em>. " +
+                            "Projects targeting a Surrealist connection or the sandbox ignore these fields."
+                    ) }
                     row("Endpoint:") {
                         cell(endpoint).align(AlignX.FILL)
                             .comment("e.g. <code>ws://127.0.0.1:8000/rpc</code>")

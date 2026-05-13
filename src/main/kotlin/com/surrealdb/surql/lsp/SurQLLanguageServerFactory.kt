@@ -10,6 +10,7 @@ import com.redhat.devtools.lsp4ij.LanguageServerFactory
 import com.redhat.devtools.lsp4ij.server.CannotStartProcessException
 import com.redhat.devtools.lsp4ij.server.ProcessStreamConnectionProvider
 import com.redhat.devtools.lsp4ij.server.StreamConnectionProvider
+import com.surrealdb.surql.connection.resolveActiveConnection
 import com.surrealdb.surql.settings.SurQLSettings
 
 private val LOG = logger<SurQLLanguageServerFactory>()
@@ -24,7 +25,7 @@ private const val BINARY_RESOLVE_TIMEOUT_MS = 60_000L
 class SurQLLanguageServerFactory : LanguageServerFactory, LanguageServerEnablementSupport {
 
     override fun createConnectionProvider(project: Project): StreamConnectionProvider =
-        SurQLLanguageServer()
+        SurQLLanguageServer(project)
 
     override fun isEnabled(project: Project): Boolean =
         SurQLSettings.getInstance().lspEnabled
@@ -50,7 +51,7 @@ class SurQLLanguageServerFactory : LanguageServerFactory, LanguageServerEnableme
  * [SurQLLspStartupActivity] pre-warm; if not, we await its
  * [java.util.concurrent.CompletableFuture] with a generous timeout.
  */
-private class SurQLLanguageServer : ProcessStreamConnectionProvider() {
+private class SurQLLanguageServer(private val project: Project) : ProcessStreamConnectionProvider() {
 
     override fun start() {
         val service = SurQLLanguageServerService.getInstance()
@@ -75,7 +76,7 @@ private class SurQLLanguageServer : ProcessStreamConnectionProvider() {
     }
 
     override fun getInitializationOptions(rootUri: VirtualFile?): Any =
-        buildInitializationOptions()
+        buildInitializationOptions(project)
 }
 
 /**
@@ -84,16 +85,25 @@ private class SurQLLanguageServer : ProcessStreamConnectionProvider() {
  * The shape matches the `surrealql` key consumed by
  * `surrealql-language-server::config::ServerSettings::from_sources` — see
  * `surrealql-language-server/src/config.rs`.
+ *
+ * Connection details come from the per-project [resolveActiveConnection]
+ * pipeline so different projects can target different SurrealDB instances
+ * without affecting each other. The sandbox path intentionally omits the
+ * `connection` block: the server treats a missing endpoint as "no live DB"
+ * and falls back to workspace-only schema inference, which is the closest
+ * the LSP can get to Surrealist's in-memory sandbox.
  */
-internal fun buildInitializationOptions(): Map<String, Any?> {
+internal fun buildInitializationOptions(project: Project?): Map<String, Any?> {
     val settings = SurQLSettings.getInstance()
+    val resolved = resolveActiveConnection(project)
 
     val connection = linkedMapOf<String, Any?>().apply {
-        if (settings.surrealEndpoint.isNotBlank()) put("endpoint", settings.surrealEndpoint)
-        if (settings.surrealNamespace.isNotBlank()) put("namespace", settings.surrealNamespace)
-        if (settings.surrealDatabase.isNotBlank()) put("database", settings.surrealDatabase)
-        if (settings.surrealUsername.isNotBlank()) put("username", settings.surrealUsername)
-        if (settings.surrealPassword.isNotBlank()) put("password", settings.surrealPassword)
+        resolved.endpointForLsp()?.takeIf { it.isNotBlank() }?.let { put("endpoint", it) }
+        if (resolved.namespace.isNotBlank()) put("namespace", resolved.namespace)
+        if (resolved.database.isNotBlank()) put("database", resolved.database)
+        if (resolved.username.isNotBlank()) put("username", resolved.username)
+        if (resolved.password.isNotBlank()) put("password", resolved.password)
+        if (resolved.token.isNotBlank()) put("token", resolved.token)
     }
 
     val surrealql = linkedMapOf<String, Any?>()

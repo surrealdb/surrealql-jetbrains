@@ -9,6 +9,7 @@ import java.net.URL
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
     id("org.jetbrains.intellij.platform") version "2.14.0"
     id("org.jetbrains.changelog") version "2.2.1"
 }
@@ -49,10 +50,23 @@ dependencies {
         zipSigner()
         testFramework(TestFrameworkType.Platform)
     }
+    // Parses Surrealist's config.json (~/Library/Application Support/SurrealDB/...).
+    // The IntelliJ Platform bundles a kotlinx-serialization-json on its classpath,
+    // but the version isn't part of the stable API surface, so we ship our own.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation("junit:junit:4.13.2")
 }
 
 intellijPlatform {
+    // Disable buildSearchableOptions: the headless IDE that this task launches
+    // hits a known platform bug on IDE 2024.3 where MvStoreManager attempts to
+    // commit() against a read-only MVStore during shutdown, which prevents the
+    // IDE JVM from exiting and hangs ./gradlew buildPlugin indefinitely on
+    // `:buildSearchableOptions > IDLE`. The data this task produces is a search
+    // index used only to surface our settings in the global IDE Settings search;
+    // the plugin itself works fully without it (Settings → Tools → SurrealQL).
+    buildSearchableOptions = false
+
     pluginConfiguration {
         id = "com.surrealdb.surql-jetbrains"
         name = "SurrealQL"

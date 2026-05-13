@@ -24,12 +24,25 @@
         <!-- Persistent settings (selected grammar version) -->
         <applicationService serviceImplementation="com.surrealdb.surql.settings.SurQLSettings"/>
 
+        <!-- Per-project state: which Surrealist connection the project targets. -->
+        <projectService serviceImplementation="com.surrealdb.surql.settings.SurQLProjectSettings"/>
+
+        <!-- Imports the connection list from Surrealist's on-disk config.json. -->
+        <applicationService serviceImplementation="com.surrealdb.surql.connection.SurrealistConfigService"/>
+
         <!-- Settings page: Settings → Tools → SurrealQL -->
         <applicationConfigurable
                 parentId="tools"
                 instance="com.surrealdb.surql.settings.SurQLSettingsConfigurable"
                 id="com.surrealdb.surql.settings"
                 displayName="SurrealQL"/>
+
+        <!-- Nested settings page: Settings → Tools → SurrealQL → Project -->
+        <projectConfigurable
+                parentId="com.surrealdb.surql.settings"
+                instance="com.surrealdb.surql.settings.SurQLProjectSettingsConfigurable"
+                id="com.surrealdb.surql.settings.project"
+                displayName="Project"/>
 
         <!-- Notification group for grammar/language-server download errors -->
         <notificationGroup id="SurrealQL" displayType="BALLOON"/>
@@ -38,27 +51,24 @@
              .surql open doesn't pay the GitHub download latency. -->
         <postStartupActivity implementation="com.surrealdb.surql.lsp.SurQLLspStartupActivity"/>
 
-        <!-- Code Vision "▶ Run" lens rendered above the first line of each SurrealQL statement. -->
-        <codeInsight.codeVisionProvider
-                implementation="com.surrealdb.surql.run.SurQLCodeVisionProvider"/>
-
-        <!-- Tool window that displays query results and history. Anchored to the bottom panel. -->
-        <toolWindow id="SurrealQL Results"
-                    factoryClass="com.surrealdb.surql.run.SurQLResultsToolWindowFactory"
-                    anchor="bottom"
-                    icon="/icons/surql.svg"/>
-
-        <!-- Status bar widget showing the active SurrealDB connection details. -->
-        <statusBarWidgetFactory
-                implementation="com.surrealdb.surql.statusbar.SurQLStatusBarWidgetFactory"
-                id="SurQLStatusBar"
-                order="after git"/>
-
         <!-- Built-in dictionary for SurrealQL keywords -->
         <spellchecker.bundledDictionaryProvider
                 implementation="com.surrealdb.surql.SurQLBundledDictionaryProvider"/>
 
     </extensions>
+
+    <actions>
+        <!-- Top main-toolbar button that hands the current file off to
+             Surrealist. update() hides it whenever the focused/selected editor
+             is not a .surql/.surrealql file, so the button only appears for
+             SurrealQL files. -->
+        <action id="com.surrealdb.surql.OpenInSurrealist"
+                class="com.surrealdb.surql.SurQLOpenInSurrealistAction"
+                text="Open in Surrealist"
+                description="Open the current SurrealQL file in Surrealist">
+            <add-to-group group-id="MainToolbarRight" anchor="first"/>
+        </action>
+    </actions>
 
     <!-- LSP4IJ integration for the surrealql-language-server -->
     <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">
