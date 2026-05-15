@@ -5,14 +5,27 @@ All notable changes to the SurrealQL JetBrains plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.1](https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.0...v0.2.1) - 2026-04-30
+## [0.2.1](https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.0...v0.2.1) - 2026-05-15
 
 ### Added
 
+- "Open in Surrealist" main-toolbar action that hands the active
+`.surql`/`.surrealql` file off to the Surrealist desktop app via a
+`surrealist://` deep link, with a Download CTA when Surrealist isn't
+installed.
+- Surrealist connection picker under *Settings → Tools → SurrealQL* — pick
+from the connections Surrealist persists in its `config.json` (cloud
+connections excluded). The choice drives both the language server and
+"Open in Surrealist".
 - Custom spell-check dictionary so SurrealQL keywords (e.g. `SCHEMAFULL`,
 `SCHEMALESS`, `NAMESPACE`) are no longer flagged as typos.
 - Setting under *Settings → Tools → SurrealQL* to toggle the inline
-"▶ Run" code lens (disabled by default).
+"▶ Run" code lens.
+
+### Changed
+
+- Replaced the manual SurrealDB endpoint / namespace / database / credentials
+fields in settings with the Surrealist connection picker.
 
 ### Fixed
 
