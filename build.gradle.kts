@@ -1,3 +1,6 @@
+import org.jetbrains.changelog.Changelog
+import org.jetbrains.changelog.date
+import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import java.net.HttpURLConnection
@@ -6,11 +9,25 @@ import java.net.URL
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
     id("org.jetbrains.intellij.platform") version "2.14.0"
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = "com.surrealdb"
-version = "0.2.0"
+version = "0.2.1"
+
+changelog {
+    version.set(project.version.toString())
+    path.set(file("CHANGELOG.md").canonicalPath)
+    header.set(provider { "[${version.get()}] - ${date()}" })
+    headerParserRegex.set("""(\d+\.\d+(?:\.\d+)?)""".toRegex())
+    itemPrefix.set("-")
+    keepUnreleasedSection.set(true)
+    unreleasedTerm.set("[Unreleased]")
+    groups.set(listOf("Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"))
+    repositoryUrl.set("https://github.com/surrealdb/surrealql-jetbrains")
+}
 
 kotlin {
     jvmToolchain(17)
@@ -33,61 +50,46 @@ dependencies {
         zipSigner()
         testFramework(TestFrameworkType.Platform)
     }
+    // Parses Surrealist's config.json (~/Library/Application Support/SurrealDB/...).
+    // The IntelliJ Platform bundles a kotlinx-serialization-json on its classpath,
+    // but the version isn't part of the stable API surface, so we ship our own.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation("junit:junit:4.13.2")
 }
 
 intellijPlatform {
+    // Disable buildSearchableOptions: the headless IDE that this task launches
+    // hits a known platform bug on IDE 2024.3 where MvStoreManager attempts to
+    // commit() against a read-only MVStore during shutdown, which prevents the
+    // IDE JVM from exiting and hangs ./gradlew buildPlugin indefinitely on
+    // `:buildSearchableOptions > IDLE`. The data this task produces is a search
+    // index used only to surface our settings in the global IDE Settings search;
+    // the plugin itself works fully without it (Settings → Tools → SurrealQL).
+    buildSearchableOptions = false
+
     pluginConfiguration {
         id = "com.surrealdb.surql-jetbrains"
         name = "SurrealQL"
         version = project.version.toString()
-        description = """
-            <p>
-              <strong>SurrealQL</strong> language support for JetBrains IDEs &mdash; brings first-class
-              editing of <code>.surql</code> and <code>.surrealql</code> files to IntelliJ IDEA,
-              PyCharm, WebStorm, GoLand, RustRover, DataGrip, and any other IntelliJ-based IDE.
-            </p>
-
-            <p>
-              <img src="https://raw.githubusercontent.com/surrealdb-dev/surql-jetbrains/main/src/main/resources/images/thumbnail.png"
-                   alt="SurrealQL syntax highlighting in the JetBrains editor"
-                   width="640"/>
-            </p>
-
-            <h3>Features</h3>
-            <ul>
-              <li>Syntax highlighting via the official TextMate grammar from
-                  <a href="https://github.com/surrealdb/surrealql-vsx">surrealdb/surrealql-vsx</a></li>
-              <li>Custom file icon for <code>.surql</code> and <code>.surrealql</code> files in the project view and editor tabs</li>
-              <li>Grammar version picker &mdash; always stay on the latest release or pin to any older version, switched live without an IDE restart</li>
-              <li>Offline fallback: the latest grammar at build time is bundled inside the plugin so highlighting works even without a network connection</li>
-              <li>Settings page under <em>Settings &rarr; Tools &rarr; SurrealQL</em></li>
-            </ul>
-
-            <h3>Compatibility</h3>
-            <p>Works in any IntelliJ Platform IDE on build <code>243</code> (2024.3) or newer.</p>
-
-            <h3>Links</h3>
-            <ul>
-              <li><a href="https://surrealdb.com">SurrealDB</a></li>
-              <li><a href="https://surrealdb.com/docs/surrealdb/surrealql">SurrealQL documentation</a></li>
-              <li><a href="https://github.com/surrealdb-dev/surql-jetbrains">GitHub repository</a></li>
-              <li><a href="https://github.com/surrealdb-dev/surql-jetbrains/issues">Issue tracker</a></li>
-            </ul>
-        """.trimIndent()
-        changeNotes = """
-            <h3>0.1.0 &mdash; Initial release</h3>
-            <ul>
-              <li>Syntax highlighting for <code>.surql</code> and <code>.surrealql</code> files via the
-                  TextMate grammar from <a href="https://github.com/surrealdb/surrealql-vsx">surrealdb/surrealql-vsx</a></li>
-              <li>Custom SurrealQL file icon in the project view and editor tabs</li>
-              <li>Grammar version picker under <em>Settings &rarr; Tools &rarr; SurrealQL</em>:
-                  pick the latest release or pin to any published version</li>
-              <li>Live grammar swap &mdash; no IDE restart required when switching versions</li>
-              <li>Offline fallback grammar bundled inside the plugin JAR for first-launch and
-                  no-network scenarios</li>
-            </ul>
-        """.trimIndent()
+        // Marketplace description is sourced from DESCRIPTION.md, rendered to
+        // HTML at build time. Edit DESCRIPTION.md (not this file) to update the
+        // marketplace listing.
+        description = providers.fileContents(layout.projectDirectory.file("DESCRIPTION.md"))
+            .asText.map { markdownToHTML(it) }
+        // Marketplace change-notes are sourced from CHANGELOG.md via the
+        // org.jetbrains.changelog plugin. The current version's section is
+        // rendered as HTML; older versions are reachable via the marketplace
+        // history page.
+        changeNotes = provider {
+            with(changelog) {
+                renderItem(
+                    (getOrNull(project.version.toString()) ?: getUnreleased())
+                        .withHeader(false)
+                        .withEmptySections(false),
+                    Changelog.OutputType.HTML,
+                )
+            }
+        }
         ideaVersion {
             sinceBuild = "243"
             untilBuild = provider { null }
