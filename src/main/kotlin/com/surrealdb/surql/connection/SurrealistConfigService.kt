@@ -24,12 +24,6 @@ private val LOG = logger<SurrealistConfigService>()
 const val SANDBOX_CONNECTION_ID: String = "sandbox"
 
 /**
- * Sentinel id meaning "use the manually-entered fields from the application
- * settings page". Not present in Surrealist's own config.
- */
-const val CUSTOM_CONNECTION_ID: String = "custom"
-
-/**
  * `authentication.mode` value Surrealist uses for connections it manages on
  * the user's behalf via the SurrealDB Cloud sign-in flow. Cloud connections
  * authenticate via a session token Surrealist refreshes itself and don't

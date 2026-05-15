@@ -30,19 +30,12 @@
         <!-- Imports the connection list from Surrealist's on-disk config.json. -->
         <applicationService serviceImplementation="com.surrealdb.surql.connection.SurrealistConfigService"/>
 
-        <!-- Settings page: Settings → Tools → SurrealQL -->
-        <applicationConfigurable
+        <!-- Settings page: Settings → Tools → SurrealQL (per-project: connection + LSP options) -->
+        <projectConfigurable
                 parentId="tools"
                 instance="com.surrealdb.surql.settings.SurQLSettingsConfigurable"
                 id="com.surrealdb.surql.settings"
                 displayName="SurrealQL"/>
-
-        <!-- Nested settings page: Settings → Tools → SurrealQL → Project -->
-        <projectConfigurable
-                parentId="com.surrealdb.surql.settings"
-                instance="com.surrealdb.surql.settings.SurQLProjectSettingsConfigurable"
-                id="com.surrealdb.surql.settings.project"
-                displayName="Project"/>
 
         <!-- Notification group for grammar/language-server download errors -->
         <notificationGroup id="SurrealQL" displayType="BALLOON"/>

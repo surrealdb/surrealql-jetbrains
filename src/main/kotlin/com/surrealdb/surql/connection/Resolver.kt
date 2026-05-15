@@ -3,7 +3,6 @@ package com.surrealdb.surql.connection
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.surrealdb.surql.settings.SurQLProjectSettings
-import com.surrealdb.surql.settings.SurQLSettings
 
 private val LOG = logger<ResolvedConnection>()
 
@@ -11,8 +10,7 @@ private val LOG = logger<ResolvedConnection>()
  * The connection currently in effect for a given project, after merging:
  *
  *  1. the project-level pick stored in [SurQLProjectSettings]
- *  2. the global "custom" override stored in [SurQLSettings]
- *  3. the catalogue of connections [SurrealistConfigService] reads from
+ *  2. the catalogue of connections [SurrealistConfigService] reads from
  *     Surrealist's `config.json`
  *
  * Callers should treat instances as immutable snapshots: re-resolve when
@@ -91,25 +89,6 @@ sealed class ResolvedConnection {
     }
 
     /**
-     * The user opted into the manual fields on the application-level
-     * settings page. We use those values verbatim — the endpoint is what
-     * they typed (e.g. `ws://127.0.0.1:8000/rpc`).
-     */
-    data class Custom(
-        override val namespace: String,
-        override val database: String,
-        override val username: String,
-        override val password: String,
-        val endpoint: String,
-    ) : ResolvedConnection() {
-        override val id: String = CUSTOM_CONNECTION_ID
-        override val displayName: String = "Custom"
-        override val token: String = ""
-
-        override fun endpointForLsp(): String? = endpoint.takeIf { it.isNotBlank() }
-    }
-
-    /**
      * The user picked a connection that Surrealist persisted in its
      * `config.json`. We rebuild the endpoint URL from the connection's
      * stored `protocol`/`hostname` so it stays in sync with whatever the
@@ -146,7 +125,6 @@ fun resolveActiveConnection(project: Project?): ResolvedConnection {
     return when {
         selectedId.isEmpty() -> ResolvedConnection.Sandbox
         selectedId == SANDBOX_CONNECTION_ID -> ResolvedConnection.Sandbox
-        selectedId == CUSTOM_CONNECTION_ID -> customConnection()
         else -> {
             val match = SurrealistConfigService.getInstance().findById(selectedId)
             if (match != null) {
@@ -160,17 +138,6 @@ fun resolveActiveConnection(project: Project?): ResolvedConnection {
             }
         }
     }
-}
-
-private fun customConnection(): ResolvedConnection {
-    val s = SurQLSettings.getInstance()
-    return ResolvedConnection.Custom(
-        namespace = s.surrealNamespace,
-        database = s.surrealDatabase,
-        username = s.surrealUsername,
-        password = s.surrealPassword,
-        endpoint = s.surrealEndpoint,
-    )
 }
 
 /**

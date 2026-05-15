@@ -16,7 +16,6 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.surrealdb.surql.connection.ResolvedConnection
 import com.surrealdb.surql.connection.resolveActiveConnection
 import java.io.IOException
-import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -28,11 +27,17 @@ import java.nio.file.Paths
  * Surrealist. Registered in the `MainToolbarRight` group via plugin.xml and
  * shown only when the focused/selected editor holds a .surql/.surrealql file.
  *
- * The launch hands the file off via a `surrealist://<path>` deep link, which
- * Surrealist's tauri_plugin_deep_link registers system-wide. Using the URL
+ * The launch hands the file off via a
+ * `surrealist://open?file=<path>&endpoint=…&ns=…&db=…&user=…` deep link, which
+ * Surrealist's `tauri_plugin_deep_link` registers system-wide. Using the URL
  * scheme is more reliable than `open -a Surrealist <path>` because it works
  * even when the OS file-association for .surql/.surrealql is missing (typical
  * for dev builds and unsigned installs).
+ *
+ * The file path is passed through the query string rather than the URL path
+ * to avoid macOS's `NSDocumentController` auto-reopen flow, which crashes
+ * Surrealist on cold start when the path component ends in `.surql` (see the
+ * `openInSurrealist` comment for the full story).
  */
 class SurQLOpenInSurrealistAction :
     AnAction("Open in Surrealist", "Open the current SurrealQL file in Surrealist", SurQLIcons.SURREALIST) {
@@ -77,22 +82,17 @@ class SurQLOpenInSurrealistAction :
         // file-association for .surql/.surrealql isn't wired up (typical for
         // dev builds and codesigning-less installs).
         //
-        // Build the path component with URI(...) so spaces/non-ASCII in the
-        // file path are percent-encoded correctly, then append our own query
-        // string. We assemble the query manually because passing it through
-        // URI's constructor would double-encode the values we encode here.
-        val basePath = URI(
-            /* scheme    */ "surrealist",
-            /* authority */ "",
-            /* path      */ file.path,
-            /* query     */ null,
-            /* fragment  */ null,
-        ).toASCIIString()
-
-        val deepLink = buildConnectionQuery(resolveActiveConnection(project))
-            .takeIf { it.isNotEmpty() }
-            ?.let { "$basePath?$it" }
-            ?: basePath
+        // CRITICAL: the file path must live in the query string, not the URL
+        // path component. macOS routes `surrealist:///abs/file.surql` URLs
+        // through `NSDocumentController`'s auto-reopen flow on cold start
+        // (because Surrealist registers itself as a `.surql` handler via
+        // tauri's `fileAssociations`), which fires `application:openURLs:`
+        // before tao's event loop is initialised and aborts the process at
+        // the FFI boundary. Keeping the file path off the URL path keeps
+        // macOS from recognising the open as a document open and routes us
+        // through the regular Apple Event handler instead — which works on
+        // cold *and* warm starts.
+        val deepLink = "surrealist://open?" + buildOpenQuery(file, resolveActiveConnection(project))
 
         val command: Array<String> = when {
             SystemInfo.isMac -> arrayOf("open", deepLink)
@@ -217,9 +217,27 @@ class SurQLOpenInSurrealistAction :
     )
 
     /**
-     * Serialise the resolved connection into a `surrealist://` query string.
+     * Build the full `surrealist://open?…` query string for a file open,
+     * combining the target `file=` path with the resolved connection's
+     * identifying fields.
      *
-     * Surrealist's [`resolveDeepLinkConnection`](https://github.com/surrealdb/surrealist)
+     * `file` is always emitted first so a quick eyeball of the URL makes the
+     * primary intent (open this file) obvious in logs and notification
+     * surfaces.
+     */
+    private fun buildOpenQuery(file: VirtualFile, resolved: ResolvedConnection): String {
+        val pairs = buildList {
+            add("file" to file.path)
+            addAll(connectionPairs(resolved))
+        }
+        return pairs.joinToString("&") { (key, value) -> "$key=${encode(value)}" }
+    }
+
+    /**
+     * Serialise the resolved connection into key/value pairs for the
+     * `surrealist://open?…` deep link.
+     *
+     * Surrealist's [`resolveDeepLinkConnectionId`](https://github.com/surrealdb/surrealist)
      * matches incoming deep links against existing connections by
      * `protocol+hostname+namespace+database+username`, so we only need to
      * pass those identifying fields — not the password — when the user has
@@ -228,31 +246,22 @@ class SurQLOpenInSurrealistAction :
      * saved connection.
      *
      * Sandbox sends `endpoint=mem://`, which Surrealist routes to its
-     * in-memory sandbox connection (see `isSandboxEndpoint` in
-     * `surrealist/src/util/connection.tsx`).
+     * in-memory sandbox connection (see `normalizeEndpointForMatch` in
+     * `surrealist/src/util/deep-link.tsx`).
      *
-     * Custom — the legacy "manually fill in the fields" path — is the only
-     * branch that still forwards `pass`, because in that case the user
-     * doesn't have a Surrealist-side saved connection to match against and
-     * Surrealist will fall through to creating a new one. The password is
-     * already stored in plain text in the plugin's XML state (see
-     * `SurQLSettings.surrealPassword` TODO), so this doesn't lower the
-     * security bar — we should migrate both to PasswordSafe in a follow-up.
+     * Matching Surrealist connections never need `pass` in the URL because
+     * the Surrealist-side resolver looks up the saved credential by id.
      */
-    private fun buildConnectionQuery(resolved: ResolvedConnection): String {
+    private fun connectionPairs(resolved: ResolvedConnection): List<Pair<String, String>> {
         val endpoint = resolved.endpointForDeepLink()?.takeIf { it.isNotBlank() }
-            ?: return ""
+            ?: return emptyList()
 
-        val pairs = buildList {
+        return buildList {
             add("endpoint" to endpoint)
             resolved.namespace.trim().takeIf { it.isNotEmpty() }?.let { add("ns" to it) }
             resolved.database.trim().takeIf { it.isNotEmpty() }?.let { add("db" to it) }
             resolved.username.trim().takeIf { it.isNotEmpty() }?.let { add("user" to it) }
-            if (resolved is ResolvedConnection.Custom) {
-                resolved.password.takeIf { it.isNotEmpty() }?.let { add("pass" to it) }
-            }
         }
-        return pairs.joinToString("&") { (key, value) -> "$key=${encode(value)}" }
     }
 
     /**
