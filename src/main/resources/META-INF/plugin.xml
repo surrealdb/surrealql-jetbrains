@@ -24,8 +24,14 @@
         <!-- Persistent settings (selected grammar version) -->
         <applicationService serviceImplementation="com.surrealdb.surql.settings.SurQLSettings"/>
 
-        <!-- Settings page: Settings → Tools → SurrealQL -->
-        <applicationConfigurable
+        <!-- Per-project state: which Surrealist connection the project targets. -->
+        <projectService serviceImplementation="com.surrealdb.surql.settings.SurQLProjectSettings"/>
+
+        <!-- Imports the connection list from Surrealist's on-disk config.json. -->
+        <applicationService serviceImplementation="com.surrealdb.surql.connection.SurrealistConfigService"/>
+
+        <!-- Settings page: Settings → Tools → SurrealQL (per-project: connection + LSP options) -->
+        <projectConfigurable
                 parentId="tools"
                 instance="com.surrealdb.surql.settings.SurQLSettingsConfigurable"
                 id="com.surrealdb.surql.settings"
@@ -38,7 +44,24 @@
              .surql open doesn't pay the GitHub download latency. -->
         <postStartupActivity implementation="com.surrealdb.surql.lsp.SurQLLspStartupActivity"/>
 
+        <!-- Built-in dictionary for SurrealQL keywords -->
+        <spellchecker.bundledDictionaryProvider
+                implementation="com.surrealdb.surql.SurQLBundledDictionaryProvider"/>
+
     </extensions>
+
+    <actions>
+        <!-- Top main-toolbar button that hands the current file off to
+             Surrealist. update() hides it whenever the focused/selected editor
+             is not a .surql/.surrealql file, so the button only appears for
+             SurrealQL files. -->
+        <action id="com.surrealdb.surql.OpenInSurrealist"
+                class="com.surrealdb.surql.SurQLOpenInSurrealistAction"
+                text="Open in Surrealist"
+                description="Open the current SurrealQL file in Surrealist">
+            <add-to-group group-id="MainToolbarRight" anchor="first"/>
+        </action>
+    </actions>
 
     <!-- LSP4IJ integration for the surrealql-language-server -->
     <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">

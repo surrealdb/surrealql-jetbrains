@@ -3,19 +3,21 @@ package com.surrealdb.surql.settings
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.components.JBCheckBox
-import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import com.redhat.devtools.lsp4ij.LanguageServerManager
 import com.surrealdb.surql.SurQLGrammarService
+import com.surrealdb.surql.connection.SurrealistConfigService
 import com.surrealdb.surql.lsp.SurQLLanguageServerFactory
 import com.surrealdb.surql.lsp.SurQLLanguageServerService
 import org.jetbrains.plugins.textmate.TextMateService
 import javax.swing.DefaultComboBoxModel
+import com.intellij.ui.components.JBLabel
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
@@ -34,7 +36,7 @@ private val INFERENCE_OPTIONS = arrayOf(
 /** Corresponding `surrealql.metadata.mode` values sent to the language server. */
 private val INFERENCE_VALUES = arrayOf("both", "workspace", "db")
 
-class SurQLSettingsConfigurable : Configurable {
+class SurQLSettingsConfigurable(private val project: Project) : Configurable {
 
     private var versionCombo: JComboBox<String>? = null
 
@@ -43,11 +45,9 @@ class SurQLSettingsConfigurable : Configurable {
     private var lspVersionCombo: JComboBox<String>? = null
     private var lspBinaryOverride: TextFieldWithBrowseButton? = null
     private var inferenceModeCombo: JComboBox<String>? = null
-    private var endpointField: JBTextField? = null
-    private var namespaceField: JBTextField? = null
-    private var databaseField: JBTextField? = null
-    private var usernameField: JBTextField? = null
-    private var passwordField: JBPasswordField? = null
+    private var codeLensEnabled: JBCheckBox? = null
+    private var connectionCombo: JComboBox<SurrealistConnectionPickerUi.Option>? = null
+    private var connectionSourceLabel: JBLabel? = null
     private var authContextField: JBTextField? = null
 
     override fun getDisplayName(): String = "SurrealQL"
@@ -83,16 +83,26 @@ class SurQLSettingsConfigurable : Configurable {
         }
         inferenceModeCombo = inferenceCombo
 
-        val endpoint = JBTextField(SurQLSettings.getInstance().surrealEndpoint)
-        endpointField = endpoint
-        val namespace = JBTextField(SurQLSettings.getInstance().surrealNamespace)
-        namespaceField = namespace
-        val database = JBTextField(SurQLSettings.getInstance().surrealDatabase)
-        databaseField = database
-        val username = JBTextField(SurQLSettings.getInstance().surrealUsername)
-        usernameField = username
-        val password = JBPasswordField().apply { text = SurQLSettings.getInstance().surrealPassword }
-        passwordField = password
+        val codeLens = JBCheckBox("Enable code lens", SurQLSettings.getInstance().codeLensEnabled)
+        codeLensEnabled = codeLens
+
+        val connCombo = SurrealistConnectionPickerUi.createComboBox()
+        connectionCombo = connCombo
+        SurrealistConnectionPickerUi.populate(connCombo, project)
+
+        val connectionRefresh = JButton("Refresh connections").apply {
+            addActionListener {
+                SurrealistConfigService.getInstance().refresh()
+                SurrealistConnectionPickerUi.populate(connCombo, project)
+                connectionSourceLabel?.text = SurrealistConnectionPickerUi.describeSource()
+            }
+        }
+
+        val sourceLabel = SurrealistConnectionPickerUi.createSourceLabel().apply {
+            putClientProperty("html.disable", true)
+        }
+        connectionSourceLabel = sourceLabel
+
         val authContext = JBTextField(SurQLSettings.getInstance().activeAuthContext)
         authContextField = authContext
 
@@ -138,16 +148,26 @@ class SurQLSettingsConfigurable : Configurable {
                         )
                 }
 
-                group("SurrealDB connection (optional)") {
-                    row("Endpoint:") {
-                        cell(endpoint).align(AlignX.FILL)
-                            .comment("e.g. <code>ws://127.0.0.1:8000/rpc</code>")
+                row { cell(codeLens) }
+
+                group("Database connection") {
+                    row("Connection:") {
+                        cell(connCombo).align(AlignX.FILL)
+                            .comment(
+                                "Same list Surrealist persists to disk (non-cloud connections only). " +
+                                    "The language server and <b>Open in Surrealist</b> use this choice for the " +
+                                    "current project. Pick <b>Sandbox</b> for workspace-only schema inference."
+                            )
                     }
-                    row("Namespace:") { cell(namespace).align(AlignX.FILL) }
-                    row("Database:") { cell(database).align(AlignX.FILL) }
-                    row("Username:") { cell(username).align(AlignX.FILL) }
-                    row("Password:") { cell(password).align(AlignX.FILL) }
-                    row("Active auth context:") { cell(authContext).align(AlignX.FILL) }
+                    row { cell(connectionRefresh) }
+                    row { cell(sourceLabel) }
+                }
+
+                row("Active auth context:") {
+                    cell(authContext).align(AlignX.FILL)
+                        .comment(
+                            "Forwarded as <code>surrealql.activeAuthContext</code> to the language server."
+                        )
                 }
 
                 row { cell(restartButton) }
@@ -159,16 +179,15 @@ class SurQLSettingsConfigurable : Configurable {
 
     override fun isModified(): Boolean {
         val settings = SurQLSettings.getInstance()
+        val savedConn = SurQLProjectSettings.getInstance(project).selectedConnectionId
+        val uiConn = SurrealistConnectionPickerUi.selectedConnectionId(connectionCombo) ?: savedConn
         return selectedVersion(versionCombo) != settings.selectedVersion ||
             (lspEnabled?.isSelected ?: settings.lspEnabled) != settings.lspEnabled ||
             selectedVersion(lspVersionCombo) != settings.lspSelectedVersion ||
             (lspBinaryOverride?.text ?: "") != settings.lspBinaryOverride ||
             selectedInferenceMode() != settings.inferenceMode ||
-            (endpointField?.text ?: "") != settings.surrealEndpoint ||
-            (namespaceField?.text ?: "") != settings.surrealNamespace ||
-            (databaseField?.text ?: "") != settings.surrealDatabase ||
-            (usernameField?.text ?: "") != settings.surrealUsername ||
-            String(passwordField?.password ?: charArrayOf()) != settings.surrealPassword ||
+            (codeLensEnabled?.isSelected ?: settings.codeLensEnabled) != settings.codeLensEnabled ||
+            uiConn != savedConn ||
             (authContextField?.text ?: "") != settings.activeAuthContext
     }
 
@@ -179,12 +198,8 @@ class SurQLSettingsConfigurable : Configurable {
         val lspBinaryChanged = settings.lspSelectedVersion != selectedVersion(lspVersionCombo) ||
             settings.lspBinaryOverride != (lspBinaryOverride?.text ?: "")
         val initOptionsChanged = settings.inferenceMode != selectedInferenceMode() ||
-            settings.surrealEndpoint != (endpointField?.text ?: "") ||
-            settings.surrealNamespace != (namespaceField?.text ?: "") ||
-            settings.surrealDatabase != (databaseField?.text ?: "") ||
-            settings.surrealUsername != (usernameField?.text ?: "") ||
-            settings.surrealPassword != String(passwordField?.password ?: charArrayOf()) ||
-            settings.activeAuthContext != (authContextField?.text ?: "")
+            settings.activeAuthContext != (authContextField?.text ?: "") ||
+            surrealistConnectionChanged()
         val enabledChanged = settings.lspEnabled != (lspEnabled?.isSelected ?: settings.lspEnabled)
 
         settings.selectedVersion = selectedVersion(versionCombo)
@@ -192,23 +207,25 @@ class SurQLSettingsConfigurable : Configurable {
         settings.lspSelectedVersion = selectedVersion(lspVersionCombo)
         settings.lspBinaryOverride = lspBinaryOverride?.text ?: ""
         settings.inferenceMode = selectedInferenceMode()
-        settings.surrealEndpoint = endpointField?.text ?: ""
-        settings.surrealNamespace = namespaceField?.text ?: ""
-        settings.surrealDatabase = databaseField?.text ?: ""
-        settings.surrealUsername = usernameField?.text ?: ""
-        settings.surrealPassword = String(passwordField?.password ?: charArrayOf())
+        settings.codeLensEnabled = codeLensEnabled?.isSelected ?: settings.codeLensEnabled
         settings.activeAuthContext = authContextField?.text ?: ""
+
+        SurrealistConnectionPickerUi.selectedConnectionId(connectionCombo)?.let { newConnId ->
+            SurQLProjectSettings.getInstance(project).selectedConnectionId = newConnId
+        }
 
         if (grammarChanged) {
             TextMateService.getInstance().reloadEnabledBundles()
         }
         if (lspBinaryChanged || initOptionsChanged || enabledChanged) {
-            // LanguageServerManager.stop() internally calls setEnabled(false), which overwrites
-            // settings.lspEnabled. Capture the intended value first and pass it through so we
-            // can restore it between stop() and start().
             val intendedLspEnabled = lspEnabled?.isSelected ?: settings.lspEnabled
             restartLanguageServer(intendedLspEnabled)
         }
+    }
+
+    private fun surrealistConnectionChanged(): Boolean {
+        val newId = SurrealistConnectionPickerUi.selectedConnectionId(connectionCombo) ?: return false
+        return newId != SurQLProjectSettings.getInstance(project).selectedConnectionId
     }
 
     override fun reset() {
@@ -218,11 +235,12 @@ class SurQLSettingsConfigurable : Configurable {
         lspEnabled?.isSelected = settings.lspEnabled
         lspBinaryOverride?.text = settings.lspBinaryOverride
         inferenceModeCombo?.selectedIndex = INFERENCE_VALUES.indexOf(settings.inferenceMode).coerceAtLeast(0)
-        endpointField?.text = settings.surrealEndpoint
-        namespaceField?.text = settings.surrealNamespace
-        databaseField?.text = settings.surrealDatabase
-        usernameField?.text = settings.surrealUsername
-        passwordField?.text = settings.surrealPassword
+        codeLensEnabled?.isSelected = settings.codeLensEnabled
+        val combo = connectionCombo
+        if (combo != null) {
+            SurrealistConnectionPickerUi.populate(combo, project)
+        }
+        connectionSourceLabel?.text = SurrealistConnectionPickerUi.describeSource()
         authContextField?.text = settings.activeAuthContext
     }
 
@@ -232,11 +250,9 @@ class SurQLSettingsConfigurable : Configurable {
         lspVersionCombo = null
         lspBinaryOverride = null
         inferenceModeCombo = null
-        endpointField = null
-        namespaceField = null
-        databaseField = null
-        usernameField = null
-        passwordField = null
+        codeLensEnabled = null
+        connectionCombo = null
+        connectionSourceLabel = null
         authContextField = null
     }
 
@@ -266,16 +282,13 @@ class SurQLSettingsConfigurable : Configurable {
 
     private fun restartLanguageServer(intendedLspEnabled: Boolean = SurQLSettings.getInstance().lspEnabled) {
         val openProjects = ProjectManager.getInstance().openProjects
-        for (project in openProjects) {
-            val manager = LanguageServerManager.getInstance(project)
+        for (p in openProjects) {
+            val manager = LanguageServerManager.getInstance(p)
             try {
                 manager.stop(SurQLLanguageServerFactory.SERVER_ID_VALUE)
-                // stop() calls setEnabled(false) internally, overwriting settings.lspEnabled.
-                // Restore the intended value so start() sees the correct isEnabled() result.
                 SurQLSettings.getInstance().lspEnabled = intendedLspEnabled
                 manager.start(SurQLLanguageServerFactory.SERVER_ID_VALUE)
             } catch (_: Throwable) {
-                // The server may not be running yet; LSP4IJ will start it on next file open.
             }
         }
     }
@@ -292,7 +305,6 @@ class SurQLSettingsConfigurable : Configurable {
             return
         }
 
-        // Versions not yet loaded — poll on a pooled thread, then update on the EDT.
         ApplicationManager.getApplication().executeOnPooledThread {
             var waited = 0
             while (getVersions().isEmpty() && waited < 5_000) {

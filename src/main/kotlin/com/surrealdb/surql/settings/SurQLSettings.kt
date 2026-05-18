@@ -24,14 +24,6 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
         /** Optional absolute path to a user-supplied language-server binary. Takes precedence over the auto-downloaded binary when non-blank. */
         var lspBinaryOverride: String = "",
 
-        /** SurrealDB connection settings forwarded to the language server as `surrealql.connection.*`. */
-        var surrealEndpoint: String = "",
-        var surrealNamespace: String = "",
-        var surrealDatabase: String = "",
-        var surrealUsername: String = "",
-        // TODO: move to PasswordSafe in a follow-up — currently lives in plain-text XML state.
-        var surrealPassword: String = "",
-
         /** Name of the auth context the server should activate (matches `surrealql.activeAuthContext`). */
         var activeAuthContext: String = "viewer",
 
@@ -43,6 +35,9 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
          *   "db"        – remote SurrealDB only
          */
         var inferenceMode: String = "both",
+
+        /** Whether to show the code lens (▶ Run) in SurrealQL files. */
+        var codeLensEnabled: Boolean = true,
     )
 
     private var state = State()
@@ -70,26 +65,6 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
         get() = state.lspBinaryOverride
         set(value) { state.lspBinaryOverride = value }
 
-    var surrealEndpoint: String
-        get() = state.surrealEndpoint
-        set(value) { state.surrealEndpoint = value }
-
-    var surrealNamespace: String
-        get() = state.surrealNamespace
-        set(value) { state.surrealNamespace = value }
-
-    var surrealDatabase: String
-        get() = state.surrealDatabase
-        set(value) { state.surrealDatabase = value }
-
-    var surrealUsername: String
-        get() = state.surrealUsername
-        set(value) { state.surrealUsername = value }
-
-    var surrealPassword: String
-        get() = state.surrealPassword
-        set(value) { state.surrealPassword = value }
-
     var activeAuthContext: String
         get() = state.activeAuthContext
         set(value) { state.activeAuthContext = value }
@@ -97,6 +72,10 @@ class SurQLSettings : PersistentStateComponent<SurQLSettings.State> {
     var inferenceMode: String
         get() = state.inferenceMode
         set(value) { state.inferenceMode = value }
+
+    var codeLensEnabled: Boolean
+        get() = state.codeLensEnabled
+        set(value) { state.codeLensEnabled = value }
 
     companion object {
         fun getInstance(): SurQLSettings =
