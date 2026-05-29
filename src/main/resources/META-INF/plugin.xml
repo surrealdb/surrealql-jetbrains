@@ -9,7 +9,13 @@
 
     <extensions defaultExtensionNs="com.intellij">
 
-        <!-- TextMate grammar for syntax coloring of .surql/.surrealql files -->
+        <!-- TextMate grammar for syntax coloring of .surql/.surrealql files.
+             verifyPlugin emits "Dynamic Plugin Eligibility (negative): non-dynamic
+             extension com.intellij.textmate.bundleProvider" against IDE 243-252.
+             That's the platform's own extension-point declaration: JetBrains only
+             added dynamic="true" to it in IDE 253 (2025.3), so the hint is
+             expected on the older targets and clears on its own as sinceBuild
+             moves past 252. There is no plugin-side workaround. -->
         <textmate.bundleProvider implementation="com.surrealdb.surql.SurQLTextMateBundleProvider"/>
 
         <!-- File icon for .surql/.surrealql files in the project view -->
