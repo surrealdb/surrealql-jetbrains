@@ -264,6 +264,10 @@
 					}
 				},
 				{
+					"name": "keyword.operator.optional.surrealql",
+					"match": "\\.\\?"
+				},
+				{
 					"name": "keyword.operator.either.surrealql",
 					"match": "\\?:"
 				},
@@ -354,15 +358,15 @@
 		"number": {
 			"patterns": [
 				{
-					"match": "\\b\\d+(?:_\\d+)*\\.\\d+(?:_\\d+)*(?:[eE][+-]?\\d+(?:_\\d+)*)?(?:f|dec)?\\b",
+					"match": "\\b\\d+(?:_\\d+)*(?:\\.\\d+(?:_\\d+)*)?(?:[eE][+-]?\\d+(?:_\\d+)*)?dec\\b",
 					"name": "constant.numeric.decimal"
 				},
 				{
-					"match": "\\b\\d+(?:_\\d+)*(?:[eE][+-]?\\d+(?:_\\d+)*)?f\\b",
+					"match": "\\b(?:\\d+(?:_\\d+)*f|\\d+(?:_\\d+)*(?:\\.\\d+(?:_\\d+)*(?:[eE][+-]?\\d+(?:_\\d+)*)?|[eE][+-]?\\d+(?:_\\d+)*)(?:f)?)\\b",
 					"name": "constant.numeric.decimal"
 				},
 				{
-					"match": "\\b\\d+(?:_\\d+)*(?:f|dec)?\\b",
+					"match": "\\b\\d+(?:_\\d+)*\\b",
 					"name": "constant.numeric.int"
 				}
 			]
@@ -396,7 +400,7 @@
 			]
 		},
 		"duration": {
-			"match": "(\\d+(?:_\\d+)*(ns|µs|ms|s|m|h|d|w|y))+",
+			"match": "(\\d+(?:_\\d+)* *(?:ns|µs|ms|s|m|h|d|w|y)(?![A-Za-z_]))+",
 			"name": "constant.other"
 		},
 		"boolean": {
@@ -629,10 +633,10 @@
 					"include": "#positional"
 				},
 				{
-					"include": "#number"
+					"include": "#duration"
 				},
 				{
-					"include": "#duration"
+					"include": "#number"
 				},
 				{
 					"include": "#record"

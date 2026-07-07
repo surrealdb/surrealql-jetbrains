@@ -5,6 +5,13 @@ All notable changes to the SurrealQL JetBrains plugin are documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4](https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.3...v0.2.4) - 2026-07-07
+
+### Fixed
+
+- Syntax highlighting now recognises the SurrealQL `.?` optional chaining
+  operator.
+
 ## [0.2.3](https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.2...v0.2.3) - 2026-06-01
 
 ### Fixed
