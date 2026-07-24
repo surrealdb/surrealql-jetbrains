@@ -3,3 +3,4 @@ schemaless
 surrealql
 namespace
 async
+ulid
