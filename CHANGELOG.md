@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.5](https://github.com/surrealdb-dev/surql-jetbrains/compare/v0.2.4...v0.2.5) - 2026-07-24
 
-## Fixed
+### Fixed
 
 - Add `ulid` to dictionary
 
