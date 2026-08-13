@@ -1,0 +1,94 @@
+# Opens a pull request that bumps the pinned surrealql-language-server
+# version (`lsp.tag` in gradle.properties) when the LSP repo announces a
+# release. The publish workflow bundles the binaries of that tag into the
+# plugin via `./gradlew downloadLspBinaries`.
+#
+# Triggered by the `lsp-release` repository_dispatch sent from
+# surrealql-language-server's notify-consumers workflow, which only fires
+# after all four release binaries are attached. The workflow_dispatch
+# trigger exists for backfills and recovery.
+#
+# The pull request is created with a GitHub App token, not GITHUB_TOKEN:
+# a pull request created by GITHUB_TOKEN does not start CI, so the bump
+# would sit unverified.
+name: Bump LSP version
+
+on:
+  repository_dispatch:
+    types: [lsp-release]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'LSP release tag (for example v0.5.2)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Resolve and validate the tag
+        id: tag
+        env:
+          DISPATCH_TAG: ${{ github.event.client_payload.tag }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          TAG="${INPUT_TAG:-$DISPATCH_TAG}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' must match vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Write the pin
+        id: pin
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if ! grep -qE '^lsp\.tag=' gradle.properties; then
+            echo "::error::gradle.properties has no lsp.tag line to update."
+            exit 1
+          fi
+          sed -i -E "s|^lsp\.tag=.*$|lsp.tag=${TAG}|" gradle.properties
+          if git diff --quiet -- gradle.properties; then
+            echo "The pin is already $TAG. Nothing to do."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mint an installation token
+        if: steps.pin.outputs.changed == 'true'
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.LSP_BUMP_APP_ID }}
+          private-key: ${{ secrets.LSP_BUMP_APP_PRIVATE_KEY }}
+
+      - name: Open the pull request
+        if: steps.pin.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          branch: bump-lsp
+          base: main
+          commit-message: 'chore: bump surrealql-language-server to ${{ steps.tag.outputs.tag }}'
+          title: 'chore: bump surrealql-language-server to ${{ steps.tag.outputs.tag }}'
+          body: |
+            Bumps the pinned `surrealql-language-server` version to `${{ steps.tag.outputs.tag }}`.
+
+            Release notes: https://github.com/surrealdb/surrealql-language-server/releases/tag/${{ steps.tag.outputs.tag }}
+
+            Opened automatically by the `Bump LSP version` workflow. A repeat
+            announcement for the same tag updates this pull request instead of
+            opening a second one.
