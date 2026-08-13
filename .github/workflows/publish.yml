@@ -40,6 +40,13 @@ jobs:
 
       - run: chmod +x ./gradlew
 
+      # Stage the pinned LSP binaries (gradle.properties `lsp.tag`) into
+      # src/main/resources/lsp/ so the packaged plugin bundles them. The
+      # directory is gitignored, so this must run in the same job that
+      # packages the plugin — the verified artifact below is the bundled one.
+      - name: Bundle LSP binaries
+        run: ./gradlew downloadLspBinaries
+
       - name: Verify plugin
         run: ./gradlew -Pversion=${{ steps.ver.outputs.version }} verifyPlugin
 
