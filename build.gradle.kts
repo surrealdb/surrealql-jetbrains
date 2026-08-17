@@ -162,16 +162,64 @@ tasks.register("updateGrammar") {
 tasks.register("downloadLspBinaries") {
     group = "surrealql"
     description = "Downloads surrealql-language-server release binaries into src/main/resources/lsp/."
+    // Everything the action needs is captured here, at configuration time.
+    // The configuration cache forbids `Task.project` access (and captured
+    // script-object references, which top-level helper functions are) when
+    // the task executes — with `org.gradle.configuration-cache=true` in
+    // gradle.properties the previous shape failed before downloading anything.
+    val pinnedTag = (project.findProperty("lsp.tag") as String?)?.takeIf { it.isNotBlank() }
+    val requestedPlatforms = (project.findProperty("lsp.platforms") as String?)
+        ?.split(',')
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        ?.toSet()
+    val resourcesRoot = layout.projectDirectory.dir("src/main/resources/lsp").asFile
+    val projectRoot = layout.projectDirectory.asFile
+
     doLast {
-        val tag: String = (project.findProperty("lsp.tag") as String?)?.takeIf { it.isNotBlank() }
+        fun resolveLatestLspTag(): String? = try {
+            val url = URI.create("https://api.github.com/repos/surrealdb/surrealql-language-server/releases/latest").toURL()
+            val conn = url.openConnection() as HttpURLConnection
+            conn.setRequestProperty("Accept", "application/vnd.github+json")
+            conn.connectTimeout = 8_000
+            conn.readTimeout = 8_000
+            if (conn.responseCode == 200) {
+                val body = conn.inputStream.bufferedReader().readText()
+                Regex(""""tag_name"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+
+        fun downloadFollowingRedirects(url: URL, dest: File) {
+            var current: URL = url
+            var hops = 0
+            while (true) {
+                val conn = current.openConnection() as HttpURLConnection
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 8_000
+                conn.readTimeout = 60_000
+                when (val code = conn.responseCode) {
+                    in 200..299 -> {
+                        conn.inputStream.use { input ->
+                            dest.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        return
+                    }
+                    in 300..399 -> {
+                        val location = conn.getHeaderField("Location")
+                            ?: error("Redirect without Location header for $current")
+                        if (++hops > 5) error("Too many redirects fetching $url")
+                        current = URI.create(location).toURL()
+                    }
+                    else -> error("HTTP $code for $current")
+                }
+            }
+        }
+
+        val tag: String = pinnedTag
             ?: resolveLatestLspTag()
             ?: error("Could not resolve latest LSP release tag (offline?). Pass -Plsp.tag=<vX.Y.Z>.")
-
-        val requestedPlatforms = (project.findProperty("lsp.platforms") as String?)
-            ?.split(',')
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.toSet()
 
         val allAssets = listOf(
             "macos-arm64" to "surrealql-language-server-macos-arm64",
@@ -187,59 +235,18 @@ tasks.register("downloadLspBinaries") {
             error("No matching platforms in -Plsp.platforms. Valid: ${allAssets.joinToString(",") { it.first }}")
         }
 
-        val resourcesRoot = file("src/main/resources/lsp")
         resourcesRoot.mkdirs()
 
         val downloadBase = "https://github.com/surrealdb/surrealql-language-server/releases/download"
         assets.forEach { (subdir, fileName) ->
-            val dir = file("${resourcesRoot.path}/$subdir")
+            val dir = File(resourcesRoot, subdir)
             dir.mkdirs()
-            val dest = file("${dir.path}/$fileName")
-            println("Downloading $fileName ($tag) -> ${dest.relativeTo(projectDir)}")
-            downloadFollowingRedirects(uri("$downloadBase/$tag/$fileName").toURL(), dest)
+            val dest = File(dir, fileName)
+            println("Downloading $fileName ($tag) -> ${dest.relativeTo(projectRoot)}")
+            downloadFollowingRedirects(URI.create("$downloadBase/$tag/$fileName").toURL(), dest)
         }
 
         println("Done. Bundled ${assets.size} LSP binar${if (assets.size == 1) "y" else "ies"} for tag $tag.")
         println("Run ./gradlew clean buildPlugin to package them into the plugin JAR.")
-    }
-}
-
-fun resolveLatestLspTag(): String? = try {
-    val url = URI.create("https://api.github.com/repos/surrealdb/surrealql-language-server/releases/latest").toURL()
-    val conn = url.openConnection() as HttpURLConnection
-    conn.setRequestProperty("Accept", "application/vnd.github+json")
-    conn.connectTimeout = 8_000
-    conn.readTimeout = 8_000
-    if (conn.responseCode == 200) {
-        val body = conn.inputStream.bufferedReader().readText()
-        Regex(""""tag_name"\s*:\s*"([^"]+)"""").find(body)?.groupValues?.get(1)
-    } else null
-} catch (_: Exception) {
-    null
-}
-
-fun downloadFollowingRedirects(url: URL, dest: File) {
-    var current: URL = url
-    var hops = 0
-    while (true) {
-        val conn = current.openConnection() as HttpURLConnection
-        conn.instanceFollowRedirects = false
-        conn.connectTimeout = 8_000
-        conn.readTimeout = 60_000
-        when (val code = conn.responseCode) {
-            in 200..299 -> {
-                conn.inputStream.use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
-                }
-                return
-            }
-            in 300..399 -> {
-                val location = conn.getHeaderField("Location")
-                    ?: error("Redirect without Location header for $current")
-                if (++hops > 5) error("Too many redirects fetching $url")
-                current = URI.create(location).toURL()
-            }
-            else -> error("HTTP $code for $current")
-        }
     }
 }
